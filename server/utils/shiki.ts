@@ -101,13 +101,20 @@ export async function getShikiHighlighter(): Promise<HighlighterCore> {
  * @param language - The language identifier (e.g., 'typescript', 'bash')
  * @returns HTML string with syntax highlighting
  */
+// Shiki resolves these as built-in plain languages even though they are absent
+// from our explicit `langs` list (so getLoadedLanguages() omits them). Routing
+// them through codeToHtml keeps plain/no-language fences as proper `.shiki`
+// blocks instead of a bare <pre><code> that inline-code CSS fragments per line.
+const PLAINTEXT_LANGS = new Set(['text', 'txt', 'plain', 'plaintext'])
+
 export function highlightCodeSync(shiki: HighlighterCore, code: string, language: string): string {
   const loadedLangs = shiki.getLoadedLanguages()
+  const isPlaintext = PLAINTEXT_LANGS.has(language)
 
-  if (loadedLangs.includes(language as never)) {
+  if (isPlaintext || loadedLangs.includes(language as never)) {
     try {
       let html = shiki.codeToHtml(code, {
-        lang: language,
+        lang: isPlaintext ? 'text' : language,
         themes: { light: 'github-light', dark: 'github-dark' },
         defaultColor: 'dark',
       })

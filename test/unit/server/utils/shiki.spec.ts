@@ -111,4 +111,18 @@ describe('highlightCodeBlock', () => {
     expect(html).toContain('&lt;script&gt;')
     expect(html).not.toContain('<script>')
   })
+
+  it('should render plain-language fences as a shiki block, not the fragmenting fallback', async () => {
+    const code = 'line one\nline two\nline three'
+
+    for (const lang of ['text', 'txt', 'plain', 'plaintext']) {
+      const html = await highlightCodeBlock(code, lang)
+
+      // Routed through Shiki -> a single styled block, not <code class="language-text">
+      expect(html).toContain('shiki')
+      expect(html).not.toContain(`language-${lang}`)
+      expect(html).toContain('line one')
+      expect(html).toContain('line three')
+    }
+  })
 })

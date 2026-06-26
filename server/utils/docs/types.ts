@@ -32,4 +32,5 @@ export interface ProcessedEntry {
   nodes: DenoDocNode[]
   symbols: MergedSymbol[]
   lookup: SymbolLookup
+  moduleDoc?: DenoDocNode['jsDoc']
 }

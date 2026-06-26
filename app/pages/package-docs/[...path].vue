@@ -286,16 +286,28 @@ const stickyStyle = computed(() => {
   top: var(--combined-header-height);
 }
 
+<<<<<<< Updated upstream
 .docs-content .docs-group {
   scroll-margin-top: var(--combined-header-height);
 }
 
+=======
+/* Entry-point group heading (multi-entry packages): reuses the section-title
+   treatment but sits flush in the flow with extra space above each group, and
+   one notch larger than the kind titles (`Functions`) so a submodule label like
+   `traceparent` reads as the parent of the sections beneath it. */
+>>>>>>> Stashed changes
 .docs-content .docs-group-title {
-  @apply static mt-20;
+  @apply static mt-20 text-xl;
 }
 
 .docs-content .docs-group:first-child .docs-group-title {
   @apply mt-0;
+}
+
+/* Module-level docs (`@module`) rendered as an intro above an entry's symbols. */
+.docs-content .docs-module-doc {
+  @apply mb-12;
 }
 
 /* Individual symbol articles */

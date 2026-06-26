@@ -11,8 +11,13 @@
 import type { DocsGenerationResult } from '#shared/types/deno-doc'
 import { getDocNodes } from './client'
 import { buildSymbolLookup, flattenNamespaces, mergeOverloads } from './processing'
+<<<<<<< Updated upstream
 import { renderDocNodes, renderGroupedDocNodes, renderGroupedToc, renderToc } from './render'
 import { computeEntryPrefixes } from './text'
+=======
+import { renderDocNodes, renderGroupedDocNodes, renderGroupedToc, renderModuleDoc, renderToc } from './render'
+import { entrySlug } from './text'
+>>>>>>> Stashed changes
 import type { ProcessedEntry } from './types'
 
 /**
@@ -47,13 +52,19 @@ export async function generateDocsWithDeno(
   const entries = result.entries
     .map(entry => {
       const flattenedNodes = flattenNamespaces(entry.nodes)
+      // The module-level doc (`@module`) is an intro for the whole entry, not a
+      // symbol, pull it out so it renders once at the top instead of being
+      // dropped as an unknown kind.
+      const moduleDoc = flattenedNodes.find(node => node.kind === 'moduleDoc')?.jsDoc
+      const symbolNodes = flattenedNodes.filter(node => node.kind !== 'moduleDoc')
       return {
         entryPoint: entry.entryPoint,
-        nodes: flattenedNodes,
-        symbols: mergeOverloads(flattenedNodes),
+        nodes: symbolNodes,
+        symbols: mergeOverloads(symbolNodes),
+        moduleDoc,
       }
     })
-    .filter(entry => entry.symbols.length > 0)
+    .filter(entry => entry.symbols.length > 0 || Boolean(entry.moduleDoc))
 
   if (entries.length === 0) {
     return null
@@ -77,6 +88,7 @@ export async function generateDocsWithDeno(
       nodes: entry.nodes,
       symbols: entry.symbols,
       lookup: buildSymbolLookup(entry.nodes, prefix),
+      moduleDoc: entry.moduleDoc,
     }
   })
 
@@ -84,7 +96,11 @@ export async function generateDocsWithDeno(
 
   if (!isMultiEntry) {
     const entry = processed[0]!
-    const html = await renderDocNodes(entry.symbols, entry.lookup)
+    const [moduleDoc, body] = await Promise.all([
+      renderModuleDoc(entry.moduleDoc, entry.lookup),
+      renderDocNodes(entry.symbols, entry.lookup),
+    ])
+    const html = [moduleDoc, body].filter(Boolean).join('\n')
     const toc = renderToc(entry.symbols)
     return { html, toc, nodes: allNodes }
   }

@@ -86,7 +86,7 @@ export default defineNuxtModule({
       `form-action 'self'`,
       `object-src 'none'`,
       `manifest-src 'self'`,
-      'upgrade-insecure-requests',
+      // 'upgrade-insecure-requests',
     ].join('; ')
 
     // CSP via <meta> tag — only present in HTML pages, not API responses.

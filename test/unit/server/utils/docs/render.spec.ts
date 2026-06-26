@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderDocNodes, renderGroupedDocNodes, renderGroupedToc } from '#server/utils/docs/render'
+import { renderDocNodes, renderGroupedDocNodes, renderGroupedToc, renderModuleDoc } from '#server/utils/docs/render'
 import { buildSymbolLookup, mergeOverloads } from '#server/utils/docs/processing'
 import { entrySlug } from '#server/utils/docs/text'
 import type { DenoDocNode } from '#shared/types/deno-doc'
@@ -223,7 +223,11 @@ describe('renderDocNodes examples', () => {
 // Multi-entry packages
 // =============================================================================
 
-function createEntry(entryPoint: string, fnNames: string[]): ProcessedEntry {
+function createEntry(
+  entryPoint: string,
+  fnNames: string[],
+  moduleDoc?: ProcessedEntry['moduleDoc'],
+): ProcessedEntry {
   const nodes: DenoDocNode[] = fnNames.map(name => ({
     name,
     kind: 'function',
@@ -239,6 +243,7 @@ function createEntry(entryPoint: string, fnNames: string[]): ProcessedEntry {
     nodes,
     symbols: mergeOverloads(nodes),
     lookup: buildSymbolLookup(nodes, prefix),
+    moduleDoc,
   }
 }
 
@@ -347,5 +352,68 @@ describe('renderGroupedToc - multi-entry packages', () => {
     // the grouped TOC must wrap everything in exactly one landmark.
     expect(toc.match(/<nav\b/g)).toHaveLength(1)
     expect(toc.match(/aria-label="Table of contents"/g)).toHaveLength(1)
+  })
+})
+
+describe('renderModuleDoc - @module documentation', () => {
+  it('renders the description and example blocks', async () => {
+    const html = await renderModuleDoc(
+      {
+        doc: 'A tiny tracing helper.',
+        tags: [
+          { kind: 'example', doc: '```ts\nmake()\n```' },
+          { kind: 'module' },
+        ],
+      },
+      new Map(),
+    )
+
+    expect(html).toContain('class="docs-module-doc"')
+    expect(html).toContain('A tiny tracing helper.')
+    // Reuses the shared example rendering.
+    expect(html).toContain('class="docs-examples"')
+    expect(html).toContain('Example')
+    // The `@module` marker tag itself isn't rendered as content.
+    expect(html).not.toContain('>module<')
+  })
+
+  it('returns nothing when there is no doc or tags', async () => {
+    expect(await renderModuleDoc({}, new Map())).toBe('')
+  })
+})
+
+describe('renderGroupedDocNodes - module docs', () => {
+  it('renders an entry module doc under its group heading', async () => {
+    const entries = [
+      createEntry('./traceparent', ['make'], { doc: 'Traceparent helpers.' }),
+      createEntry('./tracestate', ['make']),
+    ]
+
+    const html = await renderGroupedDocNodes(entries)
+
+    expect(html).toContain('class="docs-module-doc"')
+    expect(html).toContain('Traceparent helpers.')
+    // The module doc sits inside the entry's group, before its symbols.
+    const groupStart = html.indexOf('id="group-traceparent"')
+    const moduleDocAt = html.indexOf('docs-module-doc')
+    const symbolAt = html.indexOf('id="traceparent-function-make"')
+    expect(groupStart).toBeLessThan(moduleDocAt)
+    expect(moduleDocAt).toBeLessThan(symbolAt)
+  })
+
+  it('renders a root module doc flat above the symbols', async () => {
+    const entries = [
+      createEntry('.', ['create'], { doc: 'Package overview.' }),
+      createEntry('./feature', ['make']),
+    ]
+
+    const html = await renderGroupedDocNodes(entries)
+
+    expect(html).toContain('Package overview.')
+    // Root stays flat — its module doc isn't wrapped in a group.
+    const moduleDocAt = html.indexOf('Package overview.')
+    const firstGroupAt = html.indexOf('id="group-feature"')
+    expect(moduleDocAt).toBeLessThan(firstGroupAt)
+    expect(moduleDocAt).toBeGreaterThan(-1)
   })
 })

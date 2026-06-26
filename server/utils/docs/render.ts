@@ -75,21 +75,30 @@ export async function renderGroupedDocNodes(entries: ProcessedEntry[]): Promise<
   const groups = await Promise.all(
     entries.map(async entry => {
       const isRoot = entry.entryPoint === '.'
+<<<<<<< Updated upstream
       const slug = entry.prefix
       const body = await renderDocNodes(entry.symbols, entry.lookup, slug)
+=======
+      const slug = isRoot ? '' : entrySlug(entry.entryPoint)
+      const [moduleDoc, body] = await Promise.all([
+        renderModuleDoc(entry.moduleDoc, entry.lookup),
+        renderDocNodes(entry.symbols, entry.lookup, slug),
+      ])
+      const content = [moduleDoc, body].filter(Boolean).join('\n')
+>>>>>>> Stashed changes
       // Render nothing at all for an entry that produced no content, rather
       // than an empty group wrapper + heading.
-      if (!body) return ''
+      if (!content) return ''
 
       // The root entry renders flat
-      if (isRoot) return body
+      if (isRoot) return content
 
       const lines: string[] = []
       lines.push(`<section class="docs-group" id="group-${slug}">`)
       lines.push(
         `<h2 class="docs-section-title docs-group-title">${escapeHtml(formatEntryPoint(entry.entryPoint))}</h2>`,
       )
-      lines.push(body)
+      lines.push(content)
       lines.push(`</section>`)
       return lines.join('\n')
     }),
@@ -103,6 +112,37 @@ export async function renderGroupedDocNodes(entries: ProcessedEntry[]): Promise<
  */
 function formatEntryPoint(entryPoint: string): string {
   return entryPoint.replace(/^\.\//, '')
+}
+
+/**
+ * Render an entry point's module-level documentation (`@module`) as an intro
+ * block: the description prose plus any `@example` blocks. Reuses the same
+ * markdown and tag rendering as symbols so it stays visually consistent.
+ */
+export async function renderModuleDoc(
+  jsDoc: DenoDocNode['jsDoc'],
+  symbolLookup: SymbolLookup,
+): Promise<string | null> {
+  if (jsDoc == null) return null
+  const description = jsDoc.doc?.trim()
+  const [renderedDescription, renderedTags] = await Promise.all([
+    description ? renderMarkdown(description, symbolLookup) : null,
+    jsDoc.tags && jsDoc.tags.length > 0
+      ? renderJsDocTags(jsDoc.tags, symbolLookup)
+      : null,
+  ])
+
+  if (!renderedDescription && !renderedTags) return ''
+
+  const lines: string[] = ['<div class="docs-module-doc">']
+  if (renderedDescription) {
+    lines.push(`<div class="docs-description">${renderedDescription}</div>`)
+  }
+  if (renderedTags) {
+    lines.push(renderedTags)
+  }
+  lines.push('</div>')
+  return lines.join('\n')
 }
 
 /**

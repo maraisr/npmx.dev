@@ -281,8 +281,10 @@ describe('renderMarkdown', () => {
   it('should handle fenced code blocks without language', async () => {
     const input = '```\nconst x = 1;\n```'
     const result = await renderMarkdown(input, emptyLookup)
-    // Falls back to plain code block for unknown language
-    expect(result).toContain('<pre>')
+    // No-language fences render as a proper shiki block (not the bare
+    // <pre><code class="language-text"> that inline-code CSS fragments).
+    expect(result).toContain('shiki')
+    expect(result).not.toContain('language-text')
     expect(result).toContain('const x = 1;')
   })
 
